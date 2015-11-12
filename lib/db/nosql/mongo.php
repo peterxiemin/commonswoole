@@ -1,251 +1,134 @@
 <?php
-class Storage_Mongo {
-	/**
-	 * db
-	 */
-	private $_db = '';
-	/**
-	 *
-	 * @var boolean
-	 */
-	private $_baseOptions = array (
-			'connect' => true,
-			'connectTimeoutMS' => 1000 
-	);
-	
-	/**
-	 *
-	 * @var obj
-	 */
-	private $_storgeRouteInstance = null;
-	/**
-	 *
-	 * @var array MongoClient
-	 */
-	private $_mongoClient = array ();
-	
-	/**
-	 * __construct would throw RuntimeException if config is illigal.
-	 *
-	 * @param array $config        	
-	 */
-	public function __construct() {
-	}
-	
-	/**
-	 * 鍒濆鍖朌b
-	 */
-	public function setDb($db) {
-		$this->_db = $db;
-	}
-	
-	/**
-	 * 鍒濆鍖朿onfig
-	 */
-	public function setServerConfig(storgeRoute $storgeRouteInstance) {
-		$this->_storgeRouteInstance = $storgeRouteInstance;
-	}
-	
-	/**
-	 * get mongo instance
-	 * try exception
-	 */
-	private function _getMongoConnection($dsn = "", $options = array(), $retry = 3) {
-		try {
-			return new MongoClient ( $dsn, $options );
-		} catch ( Exception $e ) {
-		}
-		
-		if ($retry > 0) {
-			return $this->_getMongoConnection ( $dsn, $options, -- $retry );
-		}
-		throw new Exception ( "cant connect to mongo server" );
-	}
-	
-	/**
-	 * get mongo
-	 */
-	private function getInstance($dsn) {
-		$key = md5 ( $dsn );
-		if (! isset ( $this->_mongoClient [$key] ) || ! $this->_mongoClient [$key]) {
-			if (! class_exists ( 'MongoClient' )) {
-				throw new Exception ( 'class MongoClient is required' );
-			}
-			$this->_mongoClient [$key] = $this->_getMongoConnection ( $dsn, $this->_baseOptions );
-		}
-		
-		return $this->_mongoClient [$key];
-	}
-	
-	/**
-	 * 鍒嗗簱鍒嗚〃
-	 * 杩斿洖collection
-	 */
-	public function getCollection($key, $collection, $hashTable) {
-		// get server sharding
-		$dsn = $this->_storgeRouteInstance->getShardingDsn ( $key );
-		;
-		$db = $this->_db;
-		if ($hashTable) {
-			$collection = $this->_storgeRouteInstance->getTableId ( $key, $collection );
-		}
-		if (! $db || ! $collection) {
-			throw new Exception ( 'Mongo config db && collection is required' );
-		}
-		$mongo = $this->getInstance ( $dsn );
-		// 杩斿洖collection
-		$mc = $mongo->$db->$collection;
-		// $mc->setReadPreference(\MongoClient::RP_PRIMARY);
-		// $mc->setReadPreference(\MongoClient::RP_PRIMARY_PREFERRED);
-		// $mc->setReadPreference(\MongoClient::RP_SECONDARY);
-		// $mc->setReadPreference ( \MongoClient::RP_SECONDARY_PREFERRED );
-		$mc->setReadPreference ( \MongoClient::RP_NEAREST );
-		
-		return $mc;
-	}
-	
-	/**
-	 * get function
-	 */
-	public function get($key, $collectionName, $hashTable = false, $intId = false, $keyPrefix = '') {
-		$key = $this->_key ( $key, $intId, $keyPrefix );
-		// 鑾峰彇collection
-		try {
-			// key鍒嗕负鏁扮粍鍜岄潪鏁扮粍
-			if (is_array ( $key )) {
-				$data = array ();
-				foreach ( $key as $k ) {
-					$collection = $this->getCollection ( $k, $collectionName, $hashTable );
-					$result = $collection->findOne ( array (
-							'_id' => $k 
-					) );
-					if ($result ['data']) {
-						$data [$result ['_id']] = $result ['data'];
-					}
-				}
-				return json_encode ( $data, JSON_UNESCAPED_UNICODE );
-			} else {
-				$collection = $this->getCollection ( $key, $collectionName, $hashTable );
-				$result = $collection->findOne ( array (
-						'_id' => $key 
-				) );
-				if (! is_array ( $result ) || ! count ( $result )) {
-					throw new Exception ( 'get key failed' );
-				}
-				return $result ['data'];
-			}
-		} catch ( Exception $e ) {
-			throw new Exception ( 'get key ' . $key . ' failed!' );
-		}
-	}
-	
-	/**
-	 * set value
-	 *
-	 * @see PI_Util_Storage_Interface::put()
-	 */
-	public function put($key, $value, $collectionName, $hashTable = false, $intId = false, $keyPrefix = '') {
-		if (! $key || ! $value) {
-			return false;
-		}
-		$key = $this->_key ( $key, $intId, $keyPrefix );
-		
-		$saveData = array (
-				'_id' => $key,
-				'data' => $value 
-		);
-		
-		try {
-			$collection = $this->getCollection ( $key, $collectionName, $hashTable );
-			$result = $collection->save ( $saveData );
-		} catch ( Exception $e ) {
-			$result = false;
-		}
-		if (is_array ( $result ) && intval ( $result ['ok'] ) == 1) {
-			return true;
-		} else {
-			return false;
-		}
-	}
-	
-	/**
-	 * delete value
-	 *
-	 * @see PI_Util_Storage_Interface::delete()
-	 */
-	public function delete($key, $collectionName, $hashTable = false, $intId = false, $keyPrefix = '') {
-		$key = $this->_key ( $key, $intId, $keyPrefix );
-		try {
-			$collection = $this->getCollection ( $key, $collectionName, $hashTable );
-			$result = $collection->remove ( array (
-					'_id' => $key 
-			), array (
-					"justOne" => true 
-			) );
-		} catch ( Exception $e ) {
-			return false;
-		}
-		if (is_array ( $result ) && $result ['ok'] == 1) {
-			return true;
-		} else {
-			return false;
-		}
-	}
-	
-	/**
-	 * increase value
-	 */
-	public function increase($key, $collectionName, $hashTable = false, $intId = false, $keyPrefix = '') {
-		$key = $this->_key ( $key, $intId, $keyPrefix );
-		
-		try {
-			$collection = $this->getCollection ( $key, $collectionName, $hashTable );
-		} catch ( Exception $e ) {
-			return false;
-		}
-		
-		try {
-			$return = $collection->findAndModify ( array (
-					'_id' => $key 
-			), array (
-					'$inc' => array (
-							'data' => 1 
-					) 
-			), array (), array (
-					'new' => true,
-					'upsert' => true 
-			) );
-		} catch ( Exception $e ) {
-			return false;
-		}
-		if (is_array ( $return ) && $return ['ok'] == 1) {
-			return $return ['data'];
-		} else {
-			return false;
-		}
-	}
-	
-	/**
-	 *
-	 * @param string $key        	
-	 * @return string
-	 */
-	private function _key($key, $intId = false, $keyPrefix = '') {
-		if (is_array ( $key )) {
-			foreach ( $key as &$v ) {
-				if ($intId) {
-					$v = intval ( $v );
-				} else {
-					$v = $keyPrefix . $v;
-				}
-			}
-			return $key;
-		} else {
-			if ($intId) {
-				return intval ( $key );
-			} else {
-				return strval ( $keyPrefix . $key );
-			}
-		}
-	}
+
+/**
+ * Created by PhpStorm.
+ * User: xiemin
+ * Date: 2015/11/10
+ * Time: 20:08
+ */
+
+/**
+ * Class MongoWrapper
+ * 考虑是否需要加入try catch
+ */
+class MongoWrapper
+{
+    private $_mng;
+    private $_db;
+    private $_collection;
+
+    private $_batchup_arr = array();
+    const MAXBATCHUPNUM = 500;
+
+    private $_batchin_arr = array();
+
+    public function __construct($cfg)
+    {
+        $this->mng = new MongoClient($cfg['mongourl'], $cfg['option']);
+    }
+
+    public function __destruct()
+    {
+
+    }
+
+    public function setCollection($collection)
+    {
+        $this->_collection = $collection;
+    }
+
+    public function setDb($db)
+    {
+        $this->_db = $db;
+    }
+
+    private function _getCollection()
+    {
+        return $this->mng->selectDB($this->_db)->selectCollection($this->_collection);
+    }
+
+    public function save($data)
+    {
+        $c = $this->_getCollection();
+        try {
+            $c->save($data);
+        } catch (MongoException $e) {
+            echo "error message: " . $e->getMessage() . "\n";
+            echo "error code: " . $e->getCode() . "\n";
+        }
+
+    }
+
+    public function get()
+    {
+        $c = $this->_getCollection();
+        return $c->findOne(/*condition, filed, option*/);
+    }
+
+    public function update($data)
+    {
+        $c = $this->_getCollection();
+        try {
+            return $c->update(array('userkey' => $data["userkey"]), array('$set' => $data));
+        } catch (MongoException $e) {
+            echo "error message: " . $e->getMessage() . "\n";
+            echo "error code: " . $e->getCode() . "\n";
+        }
+    }
+
+    /**
+     * 批量插入
+     * @param $data
+     */
+    public function batchInsert($data)
+    {
+        try {
+            if (count($this->_batchin_arr) > self::MAXBATCHUPNUM) {
+                $c = $this->_getCollection();
+                $batch = new MongoInsertBatch($c, array('ordered' => true));
+                foreach ($this->_batchin_arr as $doc) {
+                    $batch->add((object)$doc);
+                }
+                $batch->execute();
+                unset($this->_batchin_arr);
+                $this->_batchin_arr = array();
+            } else {
+                array_push($this->_batchin_arr, $data);
+            }
+        }
+        catch(MongoException $e) {
+            // 这里插入重复，不做特殊处理
+//            echo "error message: " . $e->getMessage() . "\n";
+//            echo "error code: " . $e->getCode() . "\n";
+        }
+
+
+    }
+
+    public function batchUpdate($data)
+    {
+        try {
+            if (count($this->_batchup_arr) > self::MAXBATCHUPNUM) {
+                $c = $this->_getCollection();
+                $batch = new MongoUpdateBatch($c);
+                foreach ($this->_batchup_arr as $doc) {
+                    $batch->add((object)$doc);
+                }
+                $batch->execute();
+                unset($this->_batchup_arr);
+                $this->_batchup_arr = array();
+            } else {
+                $update = array(
+                    'q' => array('userkey' => $data['userkey']),
+                    'u' => array('$set' => $data),
+                    'multi' => false,
+                    'upsert' => true,
+                );
+                array_push($this->_batchup_arr, $update);
+            }
+        } catch (MongoException $e) {
+            echo "error message: " . $e->getMessage() . "\n";
+            echo "error code: " . $e->getCode() . "\n";
+        }
+    }
 }

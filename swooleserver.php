@@ -27,9 +27,9 @@ class SwooleServer
          * 这里对swoole进程进行设置
          */
         $serv->set(array(
-            // 'reactor_num' => 1, // reactor thread num
-            // 'worker_num' => 1, // worker process num
-            // 'backlog' => 128, // listen backlog
+//            'reactor_num' => $this->swoole_cfg['swoole']['reactor_num'], // reactor thread num
+//            'backlog' => $this->swoole_cfg['swoole']['backlog'], // listen backlog
+            'worker_num' => $this->swoole_cfg['swoole']['worker_num'],
             'max_request' => $this->swoole_cfg['swoole']['max_request'],
             // 'dispatch_mode' => 1
             'log_file' => $this->swoole_cfg['swoole']['log_file'],
@@ -76,7 +76,16 @@ class SwooleServer
      */
     public function onWorkerStart($server, $worker_id)
     {
-        // TODO
+        if ($this->swoole_cfg['business'] && is_array($this->swoole_cfg['business'])) {
+            foreach ($this->swoole_cfg['business'] as $class => $type) {
+                if ($type == 'process') {
+                    $c = $this->_loadClass($class);
+                    echo 'worker_id: '.$worker_id."\n";
+                    $c->workTaskProcess($worker_id % $this->swoole_cfg['swoole']['worker_num']);
+                    echo $class . " process finished\n";
+                }
+            }
+        }
     }
 
     /**
@@ -86,7 +95,7 @@ class SwooleServer
      */
     public function onWorkerStop($server, $worker_id)
     {
-        echo "onWorkerStop\n";
+        // TODO
     }
 
     /**
@@ -96,34 +105,24 @@ class SwooleServer
      */
     public function onRequest($request, $response)
     {
-
-//        var_dump($request->server);
-//        $response->end('hello world!');
-//        exit;
-
         $class = trim($request->server['path_info'], '//');
-        if (! in_array($class, $this->swoole_cfg['business'])) {
-            $info = 'your path_info '.$class.' not register';
-            $response->end($info);
-//            echo $info.PHP_EOL;
-            return;
+
+        if ($this->swoole_cfg['business'] && is_array($this->swoole_cfg['business'])) {
+            $flag = false;
+            foreach ($this->swoole_cfg['business'] as $busness => $type) {
+                if ($busness == $class && $type == 'http') {
+                    $flag = true;
+                    continue;
+                }
+            }
+            if ($flag == false) {
+                $info = 'your path_info ' . $class . ' not register';
+                throw new Exception($info);
+            }
         }
 
-        // 如果没有被定义
-        if (! class_exists($class, false)) {
-            if (! file_exists('./logic/'.strtolower($class).'.class.php')) {
-                $info = $class.'class not exsits';
-                $response->end($info);
-//                echo $info.PHP_EOL;
-                return;
-            };
-            require_once('./logic/logic.interface.php');
-            require_once('./logic/'.strtolower($class).'.class.php');
-        }
-//        $class = ucfirst($class);
-        $c = new $class;
-
-        $json = $c->taskProcess($request);
+        $c = $this->_loadClass($class);
+        $json = $c->httpTaskProcess($request);
 
 
         if ($this->swoole_cfg['swoole']['gzip'] === true) {
@@ -134,5 +133,30 @@ class SwooleServer
         /* default */
         $response->header('Content-Type', 'application/json');
         $response->end($json);
+    }
+
+    private function _loadClass($class)
+    {
+        // 如果没有被定义
+        if (!class_exists($class, false)) {
+            if (!file_exists('./logic/' . strtolower($class) . '.class.php')) {
+                $info = strtolower($class) . 'class not exsits';
+                throw new Exception($info);
+            };
+            require_once('./logic/logic.interface.php');
+            require_once('./logic/' . strtolower($class) . '.class.php');
+        }
+
+        if (!file_exists('./conf/' . strtolower($class) . '.config.php')) {
+            $info = './conf/' . strtolower($class) . '.config.php not exsit';
+            throw new Exception($info);
+        }
+        $bussness_cfg = require('./conf/' . strtolower($class) . '.config.php');
+        return new $class($bussness_cfg);
+    }
+
+    private function hasRegister($class, $type)
+    {
+        // TODO
     }
 }

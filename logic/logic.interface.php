@@ -7,5 +7,6 @@
  */
 
 interface LogicInterface {
-    public function taskProcess($r);
+    public function httpTaskProcess($r = null);
+    public function workTaskProcess($id = 0);
 }
