@@ -1,53 +1,88 @@
 <?php
 
+/**
+ * Created by PhpStorm.
+ * User: xiemin
+ * Date: 2015/11/10
+ * Time: 11:45
+ * Description: 框架的核心封装类
+ */
 class SwooleServer
 {
-    private $serv;
-    private $swoole_cfg;
+    private $_serv;
+    private $_swoole_cfg = array();
 
-    public function __construct()
+    public function __construct($cfg)
     {
-        $this->swoole_cfg = require('./conf/swoole.config.php');
-        $this->configCheck();
+        $this->_swoole_cfg = $cfg;
     }
 
     public function __destruct()
     {
+
     }
 
-    public function configCheck()
+    private function _getSwooleCoreCfg()
     {
-        // 这里可以对配置进行严格检查
+        if (!$this->_swoole_cfg) {
+            throw new Exception('_swoole_cfg is invaild');
+        }
+
+        $core_cfg = array();
+        /* 默认会以cpu数为准 */
+        if (isset($this->_swoole_cfg['swoole']['worker_num'])) {
+            $core_cfg['worker_num'] = $this->_swoole_cfg['swoole']['worker_num'];
+        }
+
+        /* 下面强制设置 */
+        $core_cfg['task_worker_num'] = isset($this->_swoole_cfg['swoole']['task_worker_num']) ? $this->_swoole_cfg['swoole']['task_worker_num'] : 8;
+        $core_cfg['max_request'] = isset($this->_swoole_cfg['swoole']['max_request']) ? $this->_swoole_cfg['swoole']['max_request'] : 100000;
+
+        /* log_file和debug绑定设置 */
+        $core_cfg['daemonize'] = isset($this->_swoole_cfg['swoole']['debug']) ? !$this->_swoole_cfg['swoole']['debug'] : false;
+        if ($core_cfg['daemonize']) {
+            if (isset($this->_swoole_cfg['swoole']['log_file'])) {
+                if (!file_exists($this->_swoole_cfg['swoole']['log_file'])) {
+                    throw new Exception('log_file not exsits');
+                }
+                $core_cfg['log_file'] = $this->_swoole_cfg['swoole']['log_file'];
+            } else {
+                $core_cfg['log_file'] = "/dev/null";
+            }
+        }
+        return $core_cfg;
     }
 
     public function onInit()
     {
-        $serv = new swoole_http_server ($this->swoole_cfg['swoole']['swoole_host'], $this->swoole_cfg['swoole']['swoole_port']);
+        $host = isset($this->_swoole_cfg['swoole']['swoole_host']) ? $this->_swoole_cfg['swoole']['swoole_host'] : '0.0.0.0';
+        $port = isset($this->_swoole_cfg['swoole']['swoole_port']) ? $this->_swoole_cfg['swoole']['swoole_port'] : 80;
+        $serv = new swoole_http_server ($host, $port);
         /**
          * 这里对swoole进程进行设置
          */
-        $serv->set(array(
-//            'reactor_num' => $this->swoole_cfg['swoole']['reactor_num'], // reactor thread num
-//            'backlog' => $this->swoole_cfg['swoole']['backlog'], // listen backlog
-            'worker_num' => $this->swoole_cfg['swoole']['worker_num'],
-            'max_request' => $this->swoole_cfg['swoole']['max_request'],
-            // 'dispatch_mode' => 1
-            'log_file' => $this->swoole_cfg['swoole']['log_file'],
-            'daemonize' => $this->swoole_cfg['swoole']['daemonize']
-        ));
+        $serv->set($this->_getSwooleCoreCfg());
         $serv->on('WorkerStart', array(
             $this,
-            onWorkerStart
+            'onWorkerStart'
         ));
         $serv->on('WorkerStop', array(
             $this,
-            onWorkerStop
+            'onWorkerStop'
         ));
         $serv->on('Request', array(
             $this,
-            onRequest
+            'onRequest'
         ));
-        $this->serv = $serv;
+        $serv->on('Task', array(
+            $this,
+            'onTask'
+        ));
+        $serv->on('Finish', array(
+            $this,
+            'onFinish'
+        ));
+        $this->_serv = $serv;
     }
 
     /**
@@ -55,19 +90,17 @@ class SwooleServer
      */
     public function onStart()
     {
-        if ($this->serv) {
-            $this->serv->start();
+        if ($this->_serv) {
+            $this->_serv->start();
         } else {
             throw new Exception('swoole instance is null');
         }
     }
 
-
     public function onExit()
     {
         // TODO
     }
-
 
     /**
      * 启动进程的时候调用此函数
@@ -76,20 +109,15 @@ class SwooleServer
      */
     public function onWorkerStart($server, $worker_id)
     {
-        if ($this->swoole_cfg['business'] && is_array($this->swoole_cfg['business'])) {
-            foreach ($this->swoole_cfg['business'] as $class => $type) {
-                if ($type == 'process') {
-                    $c = $this->_loadClass($class);
-                    echo 'worker_id: '.$worker_id."\n";
-                    $c->workTaskProcess($worker_id % $this->swoole_cfg['swoole']['worker_num']);
-                    echo $class . " process finished\n";
-                }
-            }
+        global $argv;
+        if ($worker_id >= $server->setting['worker_num']) {
+            swoole_set_process_name("php {$argv[0]} {$this->_swoole_cfg['swoole']['progname']} task worker");
+        } else {
+            swoole_set_process_name("php {$argv[0]} {$this->_swoole_cfg['swoole']['progname']} event worker");
         }
     }
 
     /**
-     *
      * @param unknown $server
      * @param unknown $worker_id
      */
@@ -99,64 +127,149 @@ class SwooleServer
     }
 
     /**
-     *
-     * @param unknown $request
-     * @param unknown $response
+     * @param $serv
+     * @param $task_id
+     * @param $from_id
+     * @param $data
+     */
+    public function onTask($serv, $task_id, $from_id, $data)
+    {
+        try {
+            Logger::logInfo("pid: [" . posix_getpid() . "] task_id[" . $task_id . "] from_id: [" . $from_id . "] start");
+            if ($data && is_array($data)) {
+                if (isset($data['c_arr']) && isset($data['args'])) {
+                    $c_arr = $data['c_arr'];
+                    $args = $data['args'];
+                    $c = $this->_loadClass($c_arr);
+                    $c->workTaskProcess($args);
+                }
+            }
+        } catch (Exception $e) {
+            Logger::logWarn("throw error message: [" . $e->getMessage() . "] error code : [" . $e->getCode() . "]");
+        }
+        $this->_serv->finish("finished");
+    }
+
+    public function onFinish($serv, $task_id, $data)
+    {
+        Logger::logInfo("tasking_num: [" . $serv->stats()['tasking_num'] . "] pid: [" . posix_getpid() . "] task_id: [" . $task_id . "] message: [" . $data . "]");
+    }
+
+    /**
+     * @param $request
+     * @param $response
+     * @throws Exception
      */
     public function onRequest($request, $response)
     {
-        $class = trim($request->server['path_info'], '//');
+        /* 下面操作性能出现了比较大的下降 */
+        try {
+            $msg = "";
+            $code = 0;
+            $query = array();
+            if (!isset($request->server['path_info'])) {
+                throw new Exception('path_info of request->server is invaild');
+            }
+            $c_arr = $this->getCname($request->server['path_info']);
+            if (!isset($request->server['query_string'])) {
+                $query = array();
+            } else {
+                parse_str($request->server['query_string'], $query);
+            }
+            if ($this->_hasRegister($c_arr['cname'], 'http')) {
+                $c = $this->_loadClass($c_arr);
+                $ret = $c->httpTaskProcess($request);
+                if ($this->_swoole_cfg['swoole']['gzip'] === true) {
+                    $response->gzip(1);
+                    $response->header('Content-Encoding', 'gzip');
+                }
+                /* default */
+                $response->header('Content-Type', 'application/json');
+                $response->header('Content-Type', 'text/html; charset=utf-8');
+                /* 这里msg的类型发生了变化， 不好的编程风格 */
+                is_string($ret) ? $msg .= $ret : $msg = $ret;
+                $code = 1;
+            } elseif ($this->_hasRegister($c_arr['cname'], 'process')) {
+                $this->_serv->task(array('c_arr' => $c_arr, 'args' => array('query' => $query)));
+                $msg .= " pid: [" . posix_getpid() . "] finished";
+                $code = 1;
+            } else {
+                $msg = $c_arr['cname'] . " not be register";
+                $code = 0;
+            }
+            $response->end(json_encode(array('code' => $code, 'msg' => $msg), JSON_UNESCAPED_UNICODE));
+        } catch (Exception $e) {
+            $msg = "throw error message: [" . $e->getMessage() . "] error code : [" . $e->getCode() . "]\n";
+            Logger::logWarn($msg . "" . $e->getTraceAsString());
+            $response->end(json_encode(array('code' => 0, 'msg' => $msg)));
+        }
+    }
 
-        if ($this->swoole_cfg['business'] && is_array($this->swoole_cfg['business'])) {
-            $flag = false;
-            foreach ($this->swoole_cfg['business'] as $busness => $type) {
-                if ($busness == $class && $type == 'http') {
-                    $flag = true;
-                    continue;
+    /**
+     * @param $class
+     * @return mixed
+     * @throws Exception
+     */
+    private function _loadClass($c_arr)
+    {
+        //加载类文件
+        if ($c_arr && is_array($c_arr) && isset($c_arr['path_info']) && isset($c_arr['cname'])) {
+            $cname = $c_arr['cname'];
+            $path_info = $c_arr['path_info'];
+            if (!class_exists($cname, false)) {
+                require_once($this->_swoole_cfg['workpath']['LOGIC'] . 'logic.interface.php');
+                if (file_exists($this->_swoole_cfg['workpath']['LOGIC'] . strtolower($cname) . '.class.php')) {
+                    require_once($this->_swoole_cfg['workpath']['LOGIC'] . strtolower($cname) . '.class.php');
+                } else if ($this->_swoole_cfg['workpath']['LOGIC'] . $path_info . strtolower($cname) . '.class.php') {
+                    //这里支持单个业务放入文件夹中
+                    require_once($this->_swoole_cfg['workpath']['LOGIC'] . $path_info . strtolower($cname) . '.class.php');
+                } else {
+                    $info = strtolower($cname) . ' class not exsits';
+                    throw new Exception($info);
                 }
             }
-            if ($flag == false) {
-                $info = 'your path_info ' . $class . ' not register';
-                throw new Exception($info);
-            }
+        } else {
+            throw new Exception('cname or path_info is not set');
         }
 
-        $c = $this->_loadClass($class);
-        $json = $c->httpTaskProcess($request);
 
-
-        if ($this->swoole_cfg['swoole']['gzip'] === true) {
-            $response->gzip(1);
-            $response->header('Content-Encoding', 'gzip');
-        }
-
-        /* default */
-        $response->header('Content-Type', 'application/json');
-        $response->end($json);
-    }
-
-    private function _loadClass($class)
-    {
-        // 如果没有被定义
-        if (!class_exists($class, false)) {
-            if (!file_exists('./logic/' . strtolower($class) . '.class.php')) {
-                $info = strtolower($class) . 'class not exsits';
-                throw new Exception($info);
-            };
-            require_once('./logic/logic.interface.php');
-            require_once('./logic/' . strtolower($class) . '.class.php');
-        }
-
-        if (!file_exists('./conf/' . strtolower($class) . '.config.php')) {
-            $info = './conf/' . strtolower($class) . '.config.php not exsit';
+        //加载配置文件,目前只支持单一配置文件
+        if (!file_exists($this->_swoole_cfg['workpath']['CONFIG'] . "" . strtolower($cname) . '.config.php')) {
+            $info = $this->_swoole_cfg['workpath']['CONFIG'] . strtolower($cname) . '.config.php not exsit';
             throw new Exception($info);
         }
-        $bussness_cfg = require('./conf/' . strtolower($class) . '.config.php');
-        return new $class($bussness_cfg);
+        $bussness_cfg = require($this->_swoole_cfg['workpath']['CONFIG'] . strtolower($cname) . '.config.php');
+        return new $cname($bussness_cfg);
     }
 
-    private function hasRegister($class, $type)
+    /**
+     * @param $class
+     * @param $type
+     */
+    private function _hasRegister($class, $type)
     {
-        // TODO
+        $flag = false;
+        if ($this->_swoole_cfg['business'] && is_array($this->_swoole_cfg['business'])) {
+            foreach ($this->_swoole_cfg['business'] as $name => $prop) {
+                if ($name == $class && is_array($prop) && in_array($type, $prop['type']) && $prop['online'] == true) {
+                    $flag = true;
+                    break;
+                }
+            }
+        }
+        return $flag;
+    }
+
+    /**
+     * @param $path_info
+     * @return array
+     */
+    public function getCname($path_info)
+    {
+        preg_match('/(.*\/)(.*)/', $path_info, $match);
+        if (is_array($match) && count($match) == 3) {
+            return array('path_info' => $match[1], 'cname' => $match[2]);
+        }
+        throw new Exception('pathinfo is invaild');
     }
 }
