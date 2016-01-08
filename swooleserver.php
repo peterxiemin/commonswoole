@@ -135,7 +135,7 @@ class SwooleServer
     public function onTask($serv, $task_id, $from_id, $data)
     {
         try {
-            Logger::logInfo("pid: [" . posix_getpid() . "] task_id[" . $task_id . "] from_id: [" . $from_id . "] start");
+            lib\log\Logger::logInfo("pid: [" . posix_getpid() . "] task_id[" . $task_id . "] from_id: [" . $from_id . "] start");
             if ($data && is_array($data)) {
                 if (isset($data['c_arr']) && isset($data['args'])) {
                     $c_arr = $data['c_arr'];
@@ -145,14 +145,14 @@ class SwooleServer
                 }
             }
         } catch (Exception $e) {
-            Logger::logWarn("throw error message: [" . $e->getMessage() . "] error code : [" . $e->getCode() . "]");
+            lib\log\Logger::logWarn("throw error message: [" . $e->getMessage() . "] error code : [" . $e->getCode() . "]");
         }
         $this->_serv->finish("finished");
     }
 
     public function onFinish($serv, $task_id, $data)
     {
-        Logger::logInfo("tasking_num: [" . $serv->stats()['tasking_num'] . "] pid: [" . posix_getpid() . "] task_id: [" . $task_id . "] message: [" . $data . "]");
+        lib\log\Logger::logInfo("tasking_num: [" . $serv->stats()['tasking_num'] . "] pid: [" . posix_getpid() . "] task_id: [" . $task_id . "] message: [" . $data . "]");
     }
 
     /**
@@ -176,7 +176,7 @@ class SwooleServer
             } else {
                 parse_str($request->server['query_string'], $query);
             }
-            if ($this->_hasRegister($c_arr['cname'], 'http')) {
+            if ($this->_getRegisterType($c_arr['cname']) ==  'http') {
                 $c = $this->_loadClass($c_arr);
                 $ret = $c->httpTaskProcess($request);
                 if ($this->_swoole_cfg['swoole']['gzip'] === true) {
@@ -189,7 +189,7 @@ class SwooleServer
                 /* 这里msg的类型发生了变化， 不好的编程风格 */
                 is_string($ret) ? $msg .= $ret : $msg = $ret;
                 $code = 1;
-            } elseif ($this->_hasRegister($c_arr['cname'], 'process')) {
+            } elseif ($this->_getRegisterType($c_arr['cname']) == 'process') {
                 $this->_serv->task(array('c_arr' => $c_arr, 'args' => array('query' => $query)));
                 $msg .= " pid: [" . posix_getpid() . "] finished";
                 $code = 1;
@@ -200,7 +200,7 @@ class SwooleServer
             $response->end(json_encode(array('code' => $code, 'msg' => $msg), JSON_UNESCAPED_UNICODE));
         } catch (Exception $e) {
             $msg = "throw error message: [" . $e->getMessage() . "] error code : [" . $e->getCode() . "]\n";
-            Logger::logWarn($msg . "" . $e->getTraceAsString());
+            lib\log\Logger::logWarn($msg . "" . $e->getTraceAsString());
             $response->end(json_encode(array('code' => 0, 'msg' => $msg)));
         }
     }
@@ -246,19 +246,18 @@ class SwooleServer
      * @param $class
      * @param $type
      */
-    private function _hasRegister($class, $type)
-    {
-        $flag = false;
-        if ($this->_swoole_cfg['business'] && is_array($this->_swoole_cfg['business'])) {
-            foreach ($this->_swoole_cfg['business'] as $name => $prop) {
-                if ($name == $class && is_array($prop) && in_array($type, $prop['type']) && $prop['online'] == true) {
-                    $flag = true;
-                    break;
-                }
-            }
-        }
-        return $flag;
-    }
+	private function _getRegisterType($class)
+	{
+		if (is_array($this->_swoole_cfg['business']) && isset($this->_swoole_cfg['business'][$class]))
+		{
+			$conf = $this->_swoole_cfg['business'][$class];
+			if ($conf['online'] == true && in_array($conf['type'], array('process', 'http')))
+			{
+				return $conf['type'];
+			}
+		}
+		return false;
+	}
 
     /**
      * @param $path_info

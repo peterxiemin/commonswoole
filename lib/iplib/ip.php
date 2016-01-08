@@ -9,6 +9,7 @@
  * 数据问题请加 QQ 群: 346280296
  * Code for PHP 5.3+ only
  */
+namespace lib\iplib;
 
 class IP
 {

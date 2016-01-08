@@ -5,6 +5,8 @@
  * Date: 2015/11/10
  * Time: 9:48
  */
+namespace lib/log;
+use Logger;
 
 class Logger {
     public static function logDebug($msg) {

@@ -13,7 +13,7 @@ return array(
      */
     'swoole' => array(
         'swoole_host' => '0.0.0.0',
-        'swoole_port' => 7000,
+        'swoole_port' => 10001,
         'worker_num' => 16, // 进程数
         'task_worker_num' => 16, //任务进程数
         'max_request' => 100000,
@@ -28,51 +28,51 @@ return array(
      */
     'business' => array(
         'MongoTest' => array(
-            'type' => array('process'),
+            'type' => 'process',
             'online' => false
         ),
         'RedisTest' => array(
-            'type' => array('http'),
+            'type' => 'http',
             'online' => false
         ),
         'QueueTest' => array(
-            'type' => array('process'),
+            'type' => 'process',
             'online' => false
         ),
         'ProcessTest' => array(
-            'type' => array('process'),
+            'type' => 'process',
             'online' => false
         ),
         'HttpTest' => array(
-            'type' => array('http'),
-            'online' => false
+            'type' => 'http',
+            'online' => true
         ),
         'SShTest' => array(
-            'type' => array('process'),
+            'type' => 'process',
             'online' => false
         ),
         'BloomTest'=>array(
-            'type'=> array('http'),
+            'type'=> 'http',
             'online'=> false
         ),
         'IPTest'=>array(
-            'type'=>array('http'),
+            'type'=>'http',
             'online'=>false
         ),
         'MessageQueueTest'=>array(
-            'type'=>array('process'),
+            'type'=>'process',
             'online'=>false
         ),
         'DataTransTest' => array(
-            'type' => array('process'),
+            'type' => 'process',
             'online' => false
         ),
         'DiffUserTags' => array(
-            'type' => array('process'),
+            'type' => 'process',
             'online' => false
         ),
         'MemcacheTest' => array(
-            'type' => array('process'),
+            'type' => 'process',
             'online' => true
         )
     ),

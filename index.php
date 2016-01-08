@@ -21,20 +21,16 @@ if (!file_exists($sw_file)) {
     throw new Exception($sw_file . 'not exsits');
 }
 
-/* 全局日志 */
-$log_file = WORKROOT . '/lib/log/logger.php';
-if (!file_exists($log_file)) {
-    throw new Exception($log_file . ' not exsits');
-}
+require_once(WORKROOT . '/autoloader.php');
+spl_autoload_register('Autoloader::load');
 
 try {
     require_once($sw_file);
-    require_once($log_file);
     $sw = new swooleserver($cfg);
     $sw->onInit();
     $sw->onStart();
     $sw->onExit();
 } catch (Exception $e) {
-    Logger::logWarn("throw error message: [" . $e->getMessage() . "] error code : [" . $e->getCode() . "]");
-    Logger::logWarn($e->getTraceAsString());
+    lib\log\Logger::logWarn("throw error message: [" . $e->getMessage() . "] error code : [" . $e->getCode() . "]");
+    lib\log\Logger::logWarn($e->getTraceAsString());
 }
