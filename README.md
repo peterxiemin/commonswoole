@@ -9,5 +9,10 @@ commonswoole_0.0.1 对swoole的httpserver进行了封装，对业务和swoole框
 介绍：
 ###三、第三方库
 >1、ssh
->1、ssh
->1、ssh>1、ssh
+>1、redis
+>1、mongo
+>1、memcache
+>1、bloomfiter
+>1、httpcurl
+>1、ip_query
+>1、kafka
