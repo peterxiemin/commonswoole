@@ -5,7 +5,7 @@
  * Date: 2015/11/30
  * Time: 14:16
  */
-require_once WORKROOT . '/lib/db/nosql/php-bloomfilter/BloomFilter.php';
+require_once WORKROOT . '/lib/db/nosql/bloomfilter/BloomFilter.php';
 
 class BloomTest implements LogicInterface {
     private $_bf;

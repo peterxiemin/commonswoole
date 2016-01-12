@@ -10,6 +10,7 @@
 
 
 namespace CommonSwoole;
+use lib\log;
 
 class SSWrapper
 {
@@ -139,7 +140,7 @@ class SSWrapper
 	public function onTask($serv, $task_id, $from_id, $data)
 	{
 		try {
-			lib\log\Logger::logInfo("pid: [" . posix_getpid() . "] task_id[" . $task_id . "] from_id: [" . $from_id . "] start");
+			\lib\log\Logger::logInfo("pid: [" . posix_getpid() . "] task_id[" . $task_id . "] from_id: [" . $from_id . "] start");
 			if ($data && is_array($data)) {
 				if (isset($data['c_arr']) && isset($data['args'])) {
 					$c_arr = $data['c_arr'];
@@ -149,14 +150,14 @@ class SSWrapper
 				}
 			}
 		} catch (Exception $e) {
-			lib\log\Logger::logWarn("throw error message: [" . $e->getMessage() . "] error code : [" . $e->getCode() . "]");
+			\lib\log\Logger::logWarn("throw error message: [" . $e->getMessage() . "] error code : [" . $e->getCode() . "]");
 		}
 		$this->_serv->finish("finished");
 	}
 
 	public function onFinish($serv, $task_id, $data)
 	{
-		lib\log\Logger::logInfo("tasking_num: [" . $serv->stats()['tasking_num'] . "] pid: [" . posix_getpid() . "] task_id: [" . $task_id . "] message: [" . $data . "]");
+		\lib\log\Logger::logInfo("tasking_num: [" . $serv->stats()['tasking_num'] . "] pid: [" . posix_getpid() . "] task_id: [" . $task_id . "] message: [" . $data . "]");
 	}
 
 	/**
@@ -204,7 +205,7 @@ class SSWrapper
 			$response->end(json_encode(array('code' => $code, 'msg' => $msg), JSON_UNESCAPED_UNICODE));
 		} catch (Exception $e) {
 			$msg = "throw error message: [" . $e->getMessage() . "] error code : [" . $e->getCode() . "]\n";
-			lib\log\Logger::logWarn($msg . "" . $e->getTraceAsString());
+			\lib\log\Logger::logWarn($msg . "" . $e->getTraceAsString());
 			$response->end(json_encode(array('code' => 0, 'msg' => $msg)));
 		}
 	}

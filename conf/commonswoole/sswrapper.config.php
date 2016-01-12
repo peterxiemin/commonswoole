@@ -41,7 +41,7 @@ return array(
         ),
         'ProcessTest' => array(
             'type' => 'process',
-            'online' => false
+            'online' => true
         ),
         'HttpTest' => array(
             'type' => 'http',
@@ -49,7 +49,7 @@ return array(
         ),
         'SShTest' => array(
             'type' => 'process',
-            'online' => false
+            'online' => true
         ),
         'BloomTest'=>array(
             'type'=> 'http',

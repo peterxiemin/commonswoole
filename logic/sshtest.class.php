@@ -13,7 +13,7 @@ require_once(WORKROOT . '/lib/db/nosql/Sharding/Storage_Route.class.php');
 require_once(WORKROOT . '/lib/db/nosql/Sharding/Table_Hash.class.php');
 require_once(WORKROOT . '/lib/db/nosql/mongosharding.php');
 require_once(WORKROOT . '/lib/db/nosql/memcache.php');
-require_once(WORKROOT . '/lib/db/nosql/php-bloomfilter/BloomFilter.php');
+require_once(WORKROOT . '/lib/db/nosql/bloomfilter/BloomFilter.php');
 
 class HandleExec
 {
