@@ -1,36 +1,24 @@
-ï»¿<?php
+?<?php
 /**
  * Created by PhpStorm.
  * User: xiemin
  * Date: 2015/11/10
  * Time: 11:45
- * Description: ç¨‹åºå…¥å£ï¼Œæ‰€ä»¥çš„throwå¼‚å¸¸å¦‚æžœæ²¡æœ‰è¢«ä¸šåŠ¡æ•èŽ·ï¼Œå°†åœ¨è¿™é‡Œè¿›è¡Œæ•èŽ·
+ * Description: ³ÌÐòÈë¿Ú£¬ËùÒÔµÄthrowÒì³£Èç¹ûÃ»ÓÐ±»ÒµÎñ²¶»ñ£¬½«ÔÚÕâÀï½øÐÐ²¶»ñ
  */
 
 define('WORKROOT', __DIR__);
 date_default_timezone_set("Asia/Shanghai");
 
-$cfg_file = WORKROOT . '/conf/swoole.config.php';
-if (!file_exists($cfg_file)) {
-    throw new Exception($cfg_file . 'not exsits');
-}
-$cfg = require_once($cfg_file);
-
-$sw_file = WORKROOT . '/swooleserver.php';
-if (!file_exists($sw_file)) {
-    throw new Exception($sw_file . 'not exsits');
-}
-
-require_once(WORKROOT . '/autoloader.php');
-spl_autoload_register('Autoloader::load');
-
+//×Ô¶¯¼ÓÔØ
+require_once(WORKROOT . '/commonswoole/commonfunc.php');
+spl_autoload_register('\CommonSwoole\commonfunc::autoload');
 try {
-    require_once($sw_file);
-    $sw = new swooleserver($cfg);
-    $sw->onInit();
-    $sw->onStart();
-    $sw->onExit();
+	$sw = new CommonSwoole\SSWrapper();
+	$sw->onInit();
+	$sw->onStart();
+	$sw->onExit();
 } catch (Exception $e) {
-    lib\log\Logger::logWarn("throw error message: [" . $e->getMessage() . "] error code : [" . $e->getCode() . "]");
-    lib\log\Logger::logWarn($e->getTraceAsString());
+	lib\log\Logger::logWarn("throw error message: [" . $e->getMessage() . "] error code : [" . $e->getCode() . "]");
+	lib\log\Logger::logWarn($e->getTraceAsString());
 }

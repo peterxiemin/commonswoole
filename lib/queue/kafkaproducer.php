@@ -8,6 +8,9 @@
  * Description: 对kafka的consumer的封装
  * 实现了基本的消费功能： 1）制定partion和offset进行消费， 大需要手动修改本地的offset文件
  */
+
+namespace lib\queue;
+
 class KafkaProducerWrapper
 {
     private $_rkp;

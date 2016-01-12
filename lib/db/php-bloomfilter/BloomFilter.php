@@ -59,4 +59,4 @@ class BloomFilter
     }
 }
 
-require_once __DIR__.'/Predis.php';
+require_once __DIR__ . '/Predis.php';

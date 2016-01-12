@@ -7,9 +7,9 @@
  * Time: 13:44
  */
 
-require_once WORKROOT.'/lib/db/nosql/credis/Client.php';
-require_once WORKROOT.'/lib/db/nosql/credis/Cluster.php';
-require_once WORKROOT.'/lib/db/nosql/credis/Sentinel.php';
+require_once WORKROOT . '/lib/db/nosql/credis/Client.php';
+require_once WORKROOT . '/lib/db/nosql/credis/Cluster.php';
+require_once WORKROOT . '/lib/db/nosql/credis/Sentinel.php';
 
 class RedisWrapper
 {
