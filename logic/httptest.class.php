@@ -16,8 +16,7 @@ class HttpTest implements LogicInterface  {
     }
 
     public function httpTaskProcess($r = null) {
-		$ip = $r->get['ip'];
-		return lib\iplib\IP::find($ip);
+	return 'aaa';
     }
 
     public function workTaskProcess($data = null) {
