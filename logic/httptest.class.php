@@ -20,6 +20,7 @@ class HttpTest implements LogicInterface
 
     public function httpTaskProcess($r = null)
     {
+
         return 'aaa';
     }
 
