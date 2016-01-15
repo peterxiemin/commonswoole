@@ -270,7 +270,24 @@ class MongoWrapper
             return false;
         }
     }
-
+    
+    /**
+     * 批量操作完成后，对余数进行处理的接口函数
+     * @param null
+     * @return null
+     */
+    public function flushBuffer()
+    {
+        $arr = &$this->_getBatchArr('update');
+        if(count($arr) > 0) {
+            $c = $this->_getCollection();
+            $batch = new MongoUpdateBatch($c);
+            foreach ($arr as $doc) {
+                $batch->add((object)$doc);
+            }
+            $batch->execute();
+        }
+    }
     /**
      * 获取待批量存储的文档
      * @param $opt
