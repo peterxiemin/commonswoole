@@ -29,11 +29,10 @@ public function workTaskProcess($data = null) {
         echo 'I am a Task';
     }
 ```
-###二、定时器服务
+###三、定时器服务
 新增定时器服务，只需要在timer/config.php配置好定时器，配合process模块，就可应对毫秒定时器业务需求
 ```
-###三、第三方库封装
-###三、第三方库封装
+###四、第三方库封装
 >1、ssh
 
 >2、redis
