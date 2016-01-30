@@ -18,19 +18,20 @@ commonswoole_0.0.1 对swoole的httpserver进行了封装，对业务和swoole框
 只需要开发人员在自己的业务逻辑类中，将业务代码放入httpTaskProcess，返回的内容会自动封装成json格式
 ```
 public function httpTaskProcess($r = null) {
-		$ip = $r->get['ip'];
-		return lib\iplib\IP::find($ip);
-    }
+	$ip = $r->get['ip'];
+	return lib\iplib\IP::find($ip);
+}
 ```
 ###二、process服务
 只需要开发人员在自己的业务逻辑类中，workTaskProcess,会在日志中详细记录task任务的执行情况
 ```
 public function workTaskProcess($data = null) {
         echo 'I am a Task';
-    }
+}
 ```
 ###三、定时器服务
 新增定时器服务，只需要在timer/config.php配置好定时器，配合process模块，就可应对毫秒定时器业务需求
+```
 ```
 ###四、第三方库封装
 >1、ssh
