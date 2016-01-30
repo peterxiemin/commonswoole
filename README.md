@@ -29,6 +29,10 @@ public function workTaskProcess($data = null) {
         echo 'I am a Task';
     }
 ```
+###二、定时器服务
+新增定时器服务，只需要在timer/config.php配置好定时器，配合process模块，就可应对毫秒定时器业务需求
+```
+###三、第三方库封装
 ###三、第三方库封装
 >1、ssh
 
@@ -51,8 +55,7 @@ public function workTaskProcess($data = null) {
 
 TODO
 =======
->1、mysql封装
 
->2、logic中加入lib库的sample样例
+>1、加入tcp、udp和websocket封装支持
 
->3、加入tcp、udp和websocket封装支持
+>2、对mysql封装进行优化
