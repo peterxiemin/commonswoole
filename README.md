@@ -49,7 +49,7 @@ public function workTaskProcess($data = null) {
 
 >8、kafka
 
->9、mysql
+>9、mysql(将原来的dblite替换为thinkphp的db封装)
 
 
 TODO
@@ -57,4 +57,3 @@ TODO
 
 >1、加入tcp、udp和websocket封装支持
 
->2、对mysql封装进行优化
