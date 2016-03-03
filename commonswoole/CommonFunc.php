@@ -12,6 +12,12 @@ class CommonFunc
 {
     public static function autoLoad($c)
     {
+        $name = strstr($c, '\\', true);
+        //think 需要补一下路径
+        if (in_array($name, array('Think'))) {
+            $c = 'lib\\' . $c . '.class';
+        }
+
         $path = WORKROOT . '/' . str_replace('\\', '/', $c) . '.php';
         if (file_exists($path)) {
             include $path;
@@ -92,7 +98,7 @@ class CommonFunc
                 return $cfg[$i];
             }
         }
-        throw new \Exception('inter error seed: '.$seed.' max: '.$max.' min: '.$min);
+        throw new \Exception('inter error seed: ' . $seed . ' max: ' . $max . ' min: ' . $min);
     }
 }
 

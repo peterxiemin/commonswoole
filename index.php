@@ -12,14 +12,17 @@ date_default_timezone_set("Asia/Shanghai");
 
 //自动加载
 require_once(WORKROOT . '/commonswoole/CommonFunc.php');
+//加载全局函数
+require_once(WORKROOT . '/lib/Think/Common/functions.php');
+
 spl_autoload_register('\CommonSwoole\commonfunc::autoload');
 try {
-	$sw = new commonswoole\SSWrapper();
-	$sw->onInit();
-	$sw->onStart();
-	$sw->onExit();
+    $sw = new commonswoole\SSWrapper();
+    $sw->onInit();
+    $sw->onStart();
+    $sw->onExit();
 } catch (\Exception $e) {
-	lib\log\Logger::logWarn("throw error message: [" . $e->getMessage() . "] error code : [" . $e->getCode() . "]");
-	//打印栈信息
-	lib\log\Logger::logWarn($e->getTraceAsString());
+    lib\log\Logger::logWarn("throw error message: [" . $e->getMessage() . "] error code : [" . $e->getCode() . "]");
+    //打印栈信息
+    lib\log\Logger::logWarn($e->getTraceAsString());
 }

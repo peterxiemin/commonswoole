@@ -70,6 +70,10 @@ return array(
         'MysqlTest' => array(
             'type' => 'http',
             'online' => true,
+        ),
+        'ThinkTest' => array(
+            'type' => 'http',
+            'online' => true,
         )
     ),
 
